@@ -10,7 +10,7 @@
     REACH_API_KEY: ${secret:REACH_API_KEY}
     # Which REACH API to query
     REACH_API_NAME: ""
-    # Which set of data to output from REACH (may be blank depending upon API)
+    # Comma-separated list of which data to output from REACH (may be blank depending upon API)
     REACH_API_OUTPUTS: ""
     # Names of database and table containing profiles to enrich
     PROFILES_DATABASE: ""

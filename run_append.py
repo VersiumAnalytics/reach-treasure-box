@@ -1,7 +1,3 @@
-# This is a sample Python script.
-
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 import sys
 import os
 from os import system
@@ -19,42 +15,29 @@ import requests
 
 def main():
     # read in env vars
-    TD_API_KEY = os.environ['TD_API_KEY']
-    TD_API_SERVER = os.environ['TD_API_SERVER']
-    PROFILES_DATABASE = os.environ['PROFILES_DATABASE']
-    PROFILES_TABLE = os.environ['PROFILES_TABLE']
-    ENRICHED_PROFILES_TABLE = os.environ['ENRICHED_PROFILES_TABLE']
-    REACH_API_HOST = os.environ['REACH_API_HOST']
-    REACH_API_OUTPUTS = list(map(lambda output: output.strip(), os.environ['REACH_API_OUTPUTS'].split(','))) \
+    td_api_key = os.environ['TD_API_KEY']
+    td_api_server = os.environ['TD_API_SERVER']
+    profiles_database = os.environ['PROFILES_DATABASE']
+    profiles_table = os.environ['PROFILES_TABLE']
+    enriched_profiles_table = os.environ['ENRICHED_PROFILES_TABLE']
+    reach_api_host = os.environ['REACH_API_HOST']
+    reach_api_outputs = list(map(lambda output: output.strip(), os.environ['REACH_API_OUTPUTS'].split(','))) \
         if 'REACH_API_OUTPUTS' in os.environ else []
-    REACH_API_KEY = os.environ['REACH_API_KEY']
-    REACH_API_NAME = os.environ['REACH_API_NAME']
+    reach_api_key = os.environ['REACH_API_KEY']
+    reach_api_name = os.environ['REACH_API_NAME']
 
     # creating schema mapping , customizable for client
-    profile_schema = {'FNAME_COL': os.environ['SRC_FNAME_COL'], 'LNAME_COL': os.environ['SRC_LNAME_COL'],
-                      'EMAIL_COL': os.environ['SRC_EMAIL_COL'], 'PHONE_COL': os.environ['SRC_PHONE_COL'],
-                      'ADDR1_COL': os.environ['SRC_ADDR1_COL'], 'CITY_COL': os.environ['SRC_CITY_COL'],
-                      'STATE_COL': os.environ['SRC_STATE_COL'], 'ZIP_COL': os.environ['SRC_ZIP_COL']}
-    profile_api_map = {
-        'first': os.environ['SRC_FNAME_COL'],
-        'last': os.environ['SRC_FNAME_COL'],
-        'email': os.environ['SRC_EMAIL_COL'],
-        'phone': os.environ['SRC_PHONE_COL'],
-        'address': os.environ['SRC_ADDR1_COL'],
-        'city': os.environ['SRC_CITY_COL'],
-        'state': os.environ['SRC_STATE_COL'],
-        'zip': os.environ['SRC_ZIP_COL']
-    }
+    api_search_names, td_profile_columns = create_profile_api_map()
 
     # initialise client and con
-    con = td.connect(apikey=TD_API_KEY, endpoint=TD_API_SERVER)
-    client = pytd.Client(apikey=TD_API_KEY, endpoint=TD_API_SERVER, database=PROFILES_DATABASE)
+    con = td.connect(apikey=td_api_key, endpoint=td_api_server)
+    client = pytd.Client(apikey=td_api_key, endpoint=td_api_server, database=profiles_database)
     offset = 0
-    limit = 10
+    limit = 10000
 
     while True:
         # now get all profiles for enrichment
-        td_profiles = get_td_profiles(client, PROFILES_TABLE, profile_schema, limit=limit, offset=offset)
+        td_profiles = get_td_profiles(client, profiles_table, td_profile_columns, limit=limit, offset=offset)
 
         if len(td_profiles['data']) < 1:
             break
@@ -67,12 +50,13 @@ def main():
             # map profile column names to api names
             api_search_record = {}
 
-            for api_name in profile_api_map:
-                profile_key_name = profile_api_map[api_name]
-                if profile_key_name in row:
-                    api_search_record.update({api_name: row[profile_key_name]})
+            ctr = 0
+            for api_name in api_search_names:
+                if row[ctr]:
+                    api_search_record.update({api_name: row[ctr]})
+                ctr += 1
 
-            result = reach_append(REACH_API_HOST, REACH_API_NAME, REACH_API_OUTPUTS, REACH_API_KEY, api_search_record)
+            result = reach_append(reach_api_host, reach_api_name, reach_api_outputs, reach_api_key, api_search_record)
 
             try:
                 d = json.loads(result)['versium']['results'][0]
@@ -82,19 +66,43 @@ def main():
                 pass
 
         # send data back into treasure data table
-        con.load_table_from_dataframe(enriched_data, '{0}.{1}'.format(PROFILES_DATABASE, ENRICHED_PROFILES_TABLE),
+        con.load_table_from_dataframe(enriched_data, '{0}.{1}'.format(profiles_database, enriched_profiles_table),
                                       writer='bulk_import', if_exists='append')
+
+
+def create_profile_api_map():
+    api_environ_map = {'first': 'SRC_FIRST_COL', 'last': 'SRC_LAST_COL',
+                       'email': 'SRC_EMAIL_COL', 'phone': 'SRC_PHONE_COL',
+                       'address': 'SRC_ADDRESS_COL', 'city': 'SRC_CITY_COL',
+                       'state': 'SRC_STATE_COL', 'zip': 'SRC_ZIP_COL', 'country': 'SRC_COUNTRY_COL',
+                       'business': 'SRC_BUSINESS_COL', 'domain': 'SRC_DOMAIN_COL', 'ip': 'SRC_IP_COL'}
+    extra_columns = ['SRC_PROFILE_ID_COL']
+    api_names = []
+    profile_columns = []
+
+    for api_name, src_name in api_environ_map.items():
+        if src_name in os.environ and os.environ[src_name]:
+            api_names.append(api_name)
+            profile_columns.append(os.environ[src_name])
+
+    # add columns that are not mapped to api params, but should be included in final data set
+    for column in extra_columns:
+        if column in os.environ and os.environ[column]:
+            profile_columns.append(os.environ[column])
+
+    return [api_names, profile_columns]
 
 
 # Get contact data from treasure data master segment
 def get_td_profiles(client, profiles_table, lookup_columns, limit=10000, offset=0):
-    sql = "SELECT {0} FROM {1} OFFSET {2} LIMIT {3}".format(','.join(lookup_columns.values()), profiles_table,
+    sql = "SELECT {0} FROM {1} OFFSET {2} LIMIT {3}".format(','.join(lookup_columns), profiles_table,
                                                             offset, limit)
     print(sql)
 
     return client.query(query=sql)
 
 
+# Query REACH API for enrichment data
 def reach_append(host, api_name, api_outputs, api_key, search_record):
     url = "{0}{1}?".format(
         host, api_name)
@@ -109,8 +117,9 @@ def reach_append(host, api_name, api_outputs, api_key, search_record):
     }
     print(url)
     print(search_record)
-    response = requests.request("POST", url, data=search_record, headers=headers)
+    response = requests.post(url, params=search_record, headers=headers)
     print(response.text)
+
     return response.text
 
 

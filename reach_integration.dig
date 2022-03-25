@@ -8,19 +8,30 @@
     TD_API_SERVER: "https://api.treasuredata.com/"
     REACH_API_HOST: "https://api.versium.com/v2/"
     REACH_API_KEY: ${secret:REACH_API_KEY}
+    # Which REACH API to query
     REACH_API_NAME: ""
+    # Which set of data to output from REACH (may be blank depending upon API)
     REACH_API_OUTPUTS: ""
+    # Names of database and table containing profiles to enrich
     PROFILES_DATABASE: ""
     PROFILES_TABLE: ""
+    # Name of the table to place enriched profiles into
     ENRICHED_PROFILES_TABLE: ""
+    # Name of a unique id column for joining enriched profiles later
+    SRC_PROFILE_ID_COL: ""
+    # Enter the names of the columns of the PROFILES_TABLE
+    SRC_FIRST_COL: ""
+    SRC_LAST_COL: ""
     SRC_EMAIL_COL: ""
     SRC_PHONE_COL: ""
-    SRC_FNAME_COL: ""
-    SRC_LNAME_COL: ""
-    SRC_ADDR1_COL: ""
+    SRC_ADDRESS_COL: ""
     SRC_CITY_COL: ""
     SRC_STATE_COL: ""
     SRC_ZIP_COL: ""
+    SRC_BUSINESS_COL: ""
+    SRC_DOMAIN_COL: ""
+    SRC_IP_COL: ""
+    SRC_COUNTRY_COL: ""
   docker:
     image: "digdag/digdag-python:3.9"
 

@@ -1,0 +1,26 @@
+# Make sure Python Custom Scripting feature is enabled for your TD account.
+# See also: https://docs.treasuredata.com/display/public/PD/Custom+Scripts
+
++task1:
+  py>: run_append.main
+  _env:
+    TD_API_KEY: ${secret:TD_API_KEY}
+    TD_API_SERVER: "https://api.treasuredata.com/"
+    REACH_API_HOST: "https://api.versium.com/v2/"
+    REACH_API_KEY: ${secret:REACH_API_KEY}
+    REACH_API_NAME: ""
+    REACH_API_OUTPUTS: ""
+    PROFILES_DATABASE: ""
+    PROFILES_TABLE: ""
+    ENRICHED_PROFILES_TABLE: ""
+    SRC_EMAIL_COL: ""
+    SRC_PHONE_COL: ""
+    SRC_FNAME_COL: ""
+    SRC_LNAME_COL: ""
+    SRC_ADDR1_COL: ""
+    SRC_CITY_COL: ""
+    SRC_STATE_COL: ""
+    SRC_ZIP_COL: ""
+  docker:
+    image: "digdag/digdag-python:3.9"
+

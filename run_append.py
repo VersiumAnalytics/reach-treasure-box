@@ -70,13 +70,14 @@ def main():
                 body = json.loads(response)['versium']
 
                 if 'errors' in body:
-                    print(body['errors'])
+                    print("Received error response from REACH API: {0}".format(body['errors']))
                 elif len(body['results']) > 0:
                     # prefix keys with versium_ to avoid name collisions
                     versium_result = {f"Versium {key}": val for key, val in body['results'][0].items()}
                     append_df = pd.json_normalize(versium_result)
                     output_df = output_df.join(append_df)
-            except:
+            except Exception as e:
+                print("An error occurred during the append process: {0}".format(e))
                 pass
 
             enriched_data = enriched_data.append(output_df)

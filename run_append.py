@@ -34,9 +34,11 @@ def main():
     client = pytd.Client(apikey=td_api_key, endpoint=td_api_server, database=profiles_database)
     offset = 0
     limit = 10000
+    batch = 0
 
     while True:
         # now get all profiles for enrichment
+        batch += 1
         td_profiles = get_td_profiles(client, profiles_table, td_profile_columns, limit=limit, offset=offset)
 
         if len(td_profiles['data']) < 1:
@@ -45,10 +47,12 @@ def main():
         # initialise empty df
         enriched_data = pd.DataFrame()
         offset += limit
+        rec_ctr = 0
 
         for row in td_profiles['data']:
             # map td profile record data to REACH API search params
             api_search_record = {}
+            rec_ctr += 1
 
             ctr = 0
             for api_name in api_search_names:
@@ -60,6 +64,7 @@ def main():
             output_df = pd.json_normalize(dict(zip(td_profile_columns, row)))
 
             try:
+                print('Querying REACH API with record: {0}, batch: {1}'.format(rec_ctr, batch))
                 response = reach_append(reach_api_host, reach_api_name, reach_api_outputs, reach_api_key,
                                         api_search_record)
                 body = json.loads(response)['versium']
@@ -67,7 +72,9 @@ def main():
                 if 'errors' in body:
                     print(body['errors'])
                 elif len(body['results']) > 0:
-                    append_df = pd.json_normalize(body['results'][0])
+                    # prefix keys with versium_ to avoid name collisions
+                    versium_result = {f"Versium {key}": val for key, val in body['results'][0].items()}
+                    append_df = pd.json_normalize(versium_result)
                     output_df = output_df.join(append_df)
             except:
                 pass

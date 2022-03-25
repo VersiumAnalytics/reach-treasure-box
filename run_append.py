@@ -28,6 +28,7 @@ def main():
 
     # creating schema mapping , customizable for client
     api_search_names, td_profile_columns = create_profile_api_map()
+    api_search_names_length = range(len(api_search_names))
 
     # initialise client and con
     con = td.connect(apikey=td_api_key, endpoint=td_api_server)
@@ -54,11 +55,10 @@ def main():
             api_search_record = {}
             rec_ctr += 1
 
-            ctr = 0
-            for api_name in api_search_names:
+            for ctr in api_search_names_length:
+                api_name = api_search_names[ctr]
                 if row[ctr]:
                     api_search_record.update({api_name: row[ctr]})
-                ctr += 1
 
             # combine td profile data with td profile column names into a dictionary, then place in dataframe
             output_df = pd.json_normalize(dict(zip(td_profile_columns, row)))

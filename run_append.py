@@ -47,7 +47,7 @@ def main():
         offset += limit
 
         for row in td_profiles['data']:
-            # map profile column names to api names
+            # map td profile record data to REACH API search params
             api_search_record = {}
 
             ctr = 0
@@ -56,14 +56,23 @@ def main():
                     api_search_record.update({api_name: row[ctr]})
                 ctr += 1
 
-            result = reach_append(reach_api_host, reach_api_name, reach_api_outputs, reach_api_key, api_search_record)
+            # combine td profile data with td profile column names into a dictionary, then place in dataframe
+            output_df = pd.json_normalize(dict(zip(td_profile_columns, row)))
 
             try:
-                d = json.loads(result)['versium']['results'][0]
-                df = pd.json_normalize(d)
-                enriched_data = enriched_data.append(df)
+                response = reach_append(reach_api_host, reach_api_name, reach_api_outputs, reach_api_key,
+                                        api_search_record)
+                body = json.loads(response)['versium']
+
+                if 'errors' in body:
+                    print(body['errors'])
+                elif len(body['results']) > 0:
+                    append_df = pd.json_normalize(body['results'][0])
+                    output_df = output_df.join(append_df)
             except:
                 pass
+
+            enriched_data = enriched_data.append(output_df)
 
         # send data back into treasure data table
         con.load_table_from_dataframe(enriched_data, '{0}.{1}'.format(profiles_database, enriched_profiles_table),
@@ -115,10 +124,7 @@ def reach_append(host, api_name, api_outputs, api_key, search_record):
         'X-Accept': 'json',
         'x-versium-api-key': api_key
     }
-    print(url)
-    print(search_record)
     response = requests.post(url, params=search_record, headers=headers)
-    print(response.text)
 
     return response.text
 

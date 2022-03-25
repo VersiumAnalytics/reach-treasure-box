@@ -125,7 +125,8 @@ def reach_append(host, api_name, api_outputs, api_key, search_record):
         host, api_name)
 
     for output in api_outputs:
-        url += "&output[]={0}".format(output)
+        if (output):
+            url += "&output[]={0}".format(output)
 
     headers = {
         'Content-Type': 'application/json',

@@ -23,14 +23,12 @@ def main():
     profile_id_column = os.environ['PROFILE_ID_COL'] if 'PROFILE_ID_COL' in os.environ \
                                                             and os.environ['PROFILE_ID_COL'] else ''
     reach_api_host = os.environ['REACH_API_HOST']
-    reach_api_outputs = list(map(lambda output: output.strip(), os.environ['REACH_API_OUTPUTS'].split(','))) \
-        if 'REACH_API_OUTPUTS' in os.environ else []
+    reach_api_outputs = [output.strip() for output in os.environ.get('REACH_API_OUTPUTS', '').split(',')]
     reach_api_key = os.environ['REACH_API_KEY']
     reach_api_name = os.environ['REACH_API_NAME']
 
     # creating schema mapping , customizable for client
     api_search_names, td_profile_columns = create_profile_api_map(profile_id_column)
-    api_search_names_length = range(len(api_search_names))
 
     # initialise client and con
     con = td.connect(apikey=td_api_key, endpoint=td_api_server)
@@ -45,7 +43,7 @@ def main():
         td_profiles = get_td_profiles(client, profiles_table, enriched_profiles_table, td_profile_columns,
                                       profile_id_column, limit, offset)
 
-        if len(td_profiles['data']) < 1:
+        if not td_profiles['data']:
             break
 
         # initialise empty df
@@ -55,13 +53,8 @@ def main():
 
         for row in td_profiles['data']:
             # map td profile record data to REACH API search params
-            api_search_record = {}
+            api_search_record = {api_name: row[idx] for idx, api_name in enumerate(api_search_names) if row[idx]}
             rec_ctr += 1
-
-            for ctr in api_search_names_length:
-                api_name = api_search_names[ctr]
-                if row[ctr]:
-                    api_search_record.update({api_name: row[ctr]})
 
             # combine td profile data with td profile column names into a dictionary, then place in dataframe
             output_df = pd.json_normalize(dict(zip(td_profile_columns, row)))
@@ -100,7 +93,7 @@ def create_profile_api_map(id_column):
     profile_columns = []
 
     for api_name, profile_name in api_environ_map.items():
-        if profile_name in os.environ and os.environ[profile_name]:
+        if os.environ.get(profile_name, None):
             api_names.append(api_name)
             profile_columns.append(os.environ[profile_name])
 
@@ -108,7 +101,7 @@ def create_profile_api_map(id_column):
     if id_column not in profile_columns and id_column in os.environ and os.environ[id_column]:
         profile_columns.append(os.environ[id_column])
 
-    return [api_names, profile_columns]
+    return api_names, profile_columns
 
 
 # Get contact data from treasure data master segment

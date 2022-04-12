@@ -20,6 +20,8 @@ def main():
     profiles_database = os.environ['PROFILES_DATABASE']
     profiles_table = os.environ['PROFILES_TABLE']
     enriched_profiles_table = os.environ['ENRICHED_PROFILES_TABLE']
+    profile_id_column = os.environ['PROFILE_ID_COL'] if 'PROFILE_ID_COL' in os.environ \
+                                                            and os.environ['PROFILE_ID_COL'] else ''
     reach_api_host = os.environ['REACH_API_HOST']
     reach_api_outputs = list(map(lambda output: output.strip(), os.environ['REACH_API_OUTPUTS'].split(','))) \
         if 'REACH_API_OUTPUTS' in os.environ else []
@@ -27,7 +29,7 @@ def main():
     reach_api_name = os.environ['REACH_API_NAME']
 
     # creating schema mapping , customizable for client
-    api_search_names, td_profile_columns = create_profile_api_map()
+    api_search_names, td_profile_columns = create_profile_api_map(profile_id_column)
     api_search_names_length = range(len(api_search_names))
 
     # initialise client and con
@@ -40,7 +42,8 @@ def main():
     while True:
         # now get all profiles for enrichment
         batch += 1
-        td_profiles = get_td_profiles(client, profiles_table, td_profile_columns, limit=limit, offset=offset)
+        td_profiles = get_td_profiles(client, profiles_table, enriched_profiles_table, td_profile_columns,
+                                      profile_id_column, limit, offset)
 
         if len(td_profiles['data']) < 1:
             break
@@ -87,34 +90,35 @@ def main():
                                       writer='bulk_import', if_exists='append')
 
 
-def create_profile_api_map():
-    api_environ_map = {'first': 'SRC_FIRST_COL', 'last': 'SRC_LAST_COL',
-                       'email': 'SRC_EMAIL_COL', 'phone': 'SRC_PHONE_COL',
-                       'address': 'SRC_ADDRESS_COL', 'city': 'SRC_CITY_COL',
-                       'state': 'SRC_STATE_COL', 'zip': 'SRC_ZIP_COL', 'country': 'SRC_COUNTRY_COL',
-                       'business': 'SRC_BUSINESS_COL', 'domain': 'SRC_DOMAIN_COL', 'ip': 'SRC_IP_COL'}
-    extra_columns = ['SRC_PROFILE_ID_COL']
+def create_profile_api_map(id_column):
+    api_environ_map = {'first': 'PROFILE_FIRST_COL', 'last': 'PROFILE_LAST_COL',
+                       'email': 'PROFILE_EMAIL_COL', 'phone': 'PROFILE_PHONE_COL',
+                       'address': 'PROFILE_ADDRESS_COL', 'city': 'PROFILE_CITY_COL',
+                       'state': 'PROFILE_STATE_COL', 'zip': 'PROFILE_ZIP_COL', 'country': 'PROFILE_COUNTRY_COL',
+                       'business': 'PROFILE_BUSINESS_COL', 'domain': 'PROFILE_DOMAIN_COL', 'ip': 'PROFILE_IP_COL'}
     api_names = []
     profile_columns = []
 
-    for api_name, src_name in api_environ_map.items():
-        if src_name in os.environ and os.environ[src_name]:
+    for api_name, profile_name in api_environ_map.items():
+        if profile_name in os.environ and os.environ[profile_name]:
             api_names.append(api_name)
-            profile_columns.append(os.environ[src_name])
+            profile_columns.append(os.environ[profile_name])
 
-    # add columns that are not mapped to api params, but should be included in final data set
-    for column in extra_columns:
-        if column in os.environ and os.environ[column]:
-            profile_columns.append(os.environ[column])
+    # it's possible that PROFILE_ID_COL is also one of the api columns, so check if it has already been added
+    if id_column not in profile_columns and id_column in os.environ and os.environ[id_column]:
+        profile_columns.append(os.environ[id_column])
 
     return [api_names, profile_columns]
 
 
 # Get contact data from treasure data master segment
-def get_td_profiles(client, profiles_table, lookup_columns, limit=10000, offset=0):
-    sql = "SELECT {0} FROM {1} OFFSET {2} LIMIT {3}".format(','.join(lookup_columns), profiles_table,
-                                                            offset, limit)
-    print(sql)
+def get_td_profiles(client, profiles_table, enriched_table, lookup_columns, id_column, limit=10000, offset=0):
+    # if id_column provided, exclude records that have already been enriched
+    if id_column:
+        sql = "SELECT {0} FROM {1} WHERE {2} NOT IN (SELECT {3} FROM {4}) OFFSET {5} LIMIT {6}" \
+            .format(','.join(lookup_columns), profiles_table, id_column, id_column, enriched_table, offset, limit)
+    else:
+        sql = "SELECT {0} FROM {1} OFFSET {2} LIMIT {3}".format(','.join(lookup_columns), profiles_table, offset, limit)
 
     return client.query(query=sql)
 
@@ -125,7 +129,7 @@ def reach_append(host, api_name, api_outputs, api_key, search_record):
         host, api_name)
 
     for output in api_outputs:
-        if (output):
+        if output:
             url += "&output[]={0}".format(output)
 
     headers = {

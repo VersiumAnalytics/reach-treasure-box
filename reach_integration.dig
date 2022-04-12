@@ -17,21 +17,22 @@
     PROFILES_TABLE: ""
     # Name of the table to place enriched profiles into
     ENRICHED_PROFILES_TABLE: ""
-    # Name of a unique id column for joining enriched profiles later
-    SRC_PROFILE_ID_COL: ""
+    # If the enriched table already exists and is populated, enter the name of the unique column to
+    # to ignore records that already have been enriched
+    PROFILE_ID_COL: ""
     # Enter the names of the columns of the PROFILES_TABLE
-    SRC_FIRST_COL: ""
-    SRC_LAST_COL: ""
-    SRC_EMAIL_COL: ""
-    SRC_PHONE_COL: ""
-    SRC_ADDRESS_COL: ""
-    SRC_CITY_COL: ""
-    SRC_STATE_COL: ""
-    SRC_ZIP_COL: ""
-    SRC_BUSINESS_COL: ""
-    SRC_DOMAIN_COL: ""
-    SRC_IP_COL: ""
-    SRC_COUNTRY_COL: ""
+    PROFILE_FIRST_COL: ""
+    PROFILE_LAST_COL: ""
+    PROFILE_EMAIL_COL: ""
+    PROFILE_PHONE_COL: ""
+    PROFILE_ADDRESS_COL: ""
+    PROFILE_CITY_COL: ""
+    PROFILE_STATE_COL: ""
+    PROFILE_ZIP_COL: ""
+    PROFILE_BUSINESS_COL: ""
+    PROFILE_DOMAIN_COL: ""
+    PROFILE_IP_COL: ""
+    PROFILE_COUNTRY_COL: ""
   docker:
     image: "digdag/digdag-python:3.9"
 

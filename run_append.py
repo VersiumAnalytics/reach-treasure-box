@@ -3,8 +3,8 @@ import os
 from os import system
 
 # upgrade pandas and pytd client
-# os.system(f"{sys.executable} -m pip install -U pandas==1.0.3")
-# os.system(f"{sys.executable} -m pip install -U pytd==1.0.0")
+# os.system(f"{sys.executable} -m pip install -U pandas==1.4.2")
+# os.system(f"{sys.executable} -m pip install -U pytd==1.4.3")
 
 import pandas as pd
 import pytd

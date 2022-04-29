@@ -37,6 +37,7 @@ def main():
     limit = 10000
     batch = 0
 
+
     while True:
         # now get all profiles for enrichment
         batch += 1
@@ -125,12 +126,13 @@ def reach_append(host, api_name, api_outputs, api_key, search_record):
         if output:
             url += "&output[]={0}".format(output)
 
+    params = {**search_record, 'rcfg_include_liveramp': 1}
     headers = {
         'Content-Type': 'application/json',
         'X-Accept': 'json',
         'x-versium-api-key': api_key
     }
-    response = requests.post(url, params=search_record, headers=headers)
+    response = requests.post(url, params=params, headers=headers)
 
     return response.text
 

@@ -11,18 +11,18 @@ Treasure Data account with a Master Segment containing profiles to be enriched.
 ## Installation steps
 Install the treasure data tool belt on your local machine.
 Once installed, open your command line client and authenticate with your Treasure Data account by running the command td account: 
- 
-> td account
-
+``` 
+td account
+```
 Download the reach-treasure-box Github repository then cd into the newly created directory
-
->git clone git@github.com:VersiumAnalytics/reach-treasure-box.git
->cd reach-treasure-box
-
+```
+git clone git@github.com:VersiumAnalytics/reach-treasure-box.git
+cd reach-treasure-box
+```
 Finally upload the reach_integration workflow to your Treasure Box account:
-
->1td wf push reach_integration
-
+```
+td wf push reach_integration
+```
 You can now login to your Treasure Data account and verify that the reach_integration workflow was successfully uploaded (insert image here).
 
 ## Configure the workflow

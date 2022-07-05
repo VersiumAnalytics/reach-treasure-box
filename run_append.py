@@ -15,7 +15,7 @@ __requires__ = ["pandas==1.4.2", "pytd>=1.4.0", "aiohttp==3.8.1"]
 # Setup logging and warnings
 log_level = os.environ.get("LOG_LEVEL", "ERROR").upper()
 if log_level == "DEBUG":
-    formatter = '[%(asctime)s - %(name)30s - %(filename)15s:%(lineno)5s - %(funcName)20s() - %(levelname)8s] - %(message)s'
+    formatter = '[%(asctime)s - %(name)10s - %(filename)15s:%(lineno)5s - %(funcName)15s() - %(levelname)8s] - %(message)s'
 else:
     formatter = None
 
@@ -308,10 +308,10 @@ def main():
             num_queries = len(responses)
             effective_qps = num_queries / num_seconds
             logger.info(f"Batch {batch} Results:\n"
-                        f"Queried {num_queries} records in {num_seconds:.1f} seconds for an average of "
+                        f"\tQueried {num_queries} records in {num_seconds:.1f} seconds for an average of "
                         f"{effective_qps:.2f} queries per second.\n"
-                        f"Match Rate: {match_rate:.2%}.\n"
-                        f"Request Success Rate: {success_rate:.2%}.")
+                        f"\tMatch Rate: {match_rate:.2%}.\n"
+                        f"\tRequest Success Rate: {success_rate:.2%}.")
 
             output_df = output_df.join(append_df, rsuffix="_append")
 

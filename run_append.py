@@ -250,9 +250,9 @@ def main():
     reach_api_key = os.environ['REACH_API_KEY']
     reach_api_name = os.environ['REACH_API_NAME']
 
-    n_retry = os.environ.get("NUM_RETRY", 3)
-    read_timeout = os.environ.get("TIMEOUT", 20)
-    queries_per_second = os.environ.get("QPS", 20)
+    n_retry = int(os.environ.get("NUM_RETRY", 3))
+    read_timeout = int(os.environ.get("TIMEOUT", 20))
+    queries_per_second = int(os.environ.get("QPS", 20))
 
     # creating schema mapping , customizable for client
     api_search_names, td_profile_columns = create_profile_api_map(profile_id_column)

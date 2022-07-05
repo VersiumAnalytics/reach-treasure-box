@@ -64,6 +64,7 @@ INDEX_IDENTIFIER = "$__INDEX__$"
 MATCH_IDENTIFIER = "$__MATCH__$"
 DEFAULT_RESPONSE = {SUCCESS_IDENTIFIER: False, MATCH_IDENTIFIER: False}
 QUERIES_PER_SECOND_HARD_CAP = 100
+BATCH_SIZE = 10000
 
 
 class RateLimiter(object):
@@ -263,7 +264,7 @@ def main():
     con = td.connect(apikey=td_api_key, endpoint=td_api_server)
     client = pytd.Client(apikey=td_api_key, endpoint=td_api_server, database=profiles_database)
     offset = 0
-    limit = 10000
+    limit = BATCH_SIZE
     batch = 0
 
     while True:

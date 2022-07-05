@@ -8,6 +8,7 @@ import sys
 import time
 import warnings
 import pkg_resources
+import urllib
 
 __requires__ = ["pandas==1.4.2", "pytd>=1.4.0", "aiohttp==3.8.1"]
 
@@ -58,8 +59,8 @@ import pytd
 import pytd.pandas_td as td
 
 
-SUCCESS_IDENTIFIER = "$__SUCCESS___$"
-INDEX_IDENTIFIER = "$__INDEX___$"
+SUCCESS_IDENTIFIER = "$__SUCCESS__$"
+INDEX_IDENTIFIER = "$__INDEX__$"
 MATCH_IDENTIFIER = "$__MATCH__$"
 DEFAULT_RESPONSE = {SUCCESS_IDENTIFIER: False, MATCH_IDENTIFIER: False}
 QUERIES_PER_SECOND_HARD_CAP = 100
@@ -151,8 +152,8 @@ def get_td_profiles(client, profiles_table, enriched_table, lookup_columns, id_c
 async def _fetch(session, url, record, params, headers=None, attempts_left=3):
     """Perform the api append for a single record.
     """
-    idx = record.pop(INDEX_IDENTIFIER)
     params.update(record)
+    idx = params.pop(INDEX_IDENTIFIER, None)
 
     try:
 
@@ -171,9 +172,10 @@ async def _fetch(session, url, record, params, headers=None, attempts_left=3):
 
             result[SUCCESS_IDENTIFIER] = True
             return result
-    except:
-        exc = sys.exc_info()[1]
-        logger.error(f"Could not fetch from {url} {exc}. {attempts_left} attempts left.")
+
+    except Exception as e:
+        logger.error(f"Error during url fetch: {e}\n\tIndex: {idx}\n\tURL: {url}?{urllib.parse.urlencode(params)}"
+                     f"\n\tResponse Status: {response.status}\n\tAttempts Left: {attempts_left:d}")
         raise
 
 

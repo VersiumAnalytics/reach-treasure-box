@@ -71,11 +71,31 @@ QUERIES_PER_SECOND_HARD_CAP = 100
 BATCH_SIZE = 10000
 
 
+# Create unique exception type for query related errors
 class QueryError(RuntimeError):
     pass
 
 
 class RateLimiter(object):
+    """ Limits the number of calls to a function within a timeframe. Also limits the number of total active function calls.
+
+        Parameters
+        ----------
+        max_calls : int
+            Maximum number of function calls to make within a time period.
+        period : float
+            Length of time period in seconds.
+        n_connections : int
+            Maximum number of total active function calls to allow. Once this limit is reached, no more function calls will be made until an
+            active call returns.
+        n_retry : int
+            Number of times to retry a function call until it succeeds.
+        retry_wait_time : float
+            Number of seconds to wait between retries. The wait time will increase by a factor of `retry_wait_time` everytime the call
+            fails. For example, if `retry_wait_time`=3, then it will wait 0 seconds on the first retry, 3 seconds on the second retry,
+            6 seconds on the third retry, etc.
+    """
+
     def __init__(self, max_calls=20, period=1, n_connections=100, n_retry=3, retry_wait_time=3):
         if (max_calls // period) > QUERIES_PER_SECOND_HARD_CAP:
             raise ValueError(f"The maximum queries per second allowed is {QUERIES_PER_SECOND_HARD_CAP}. Instead got "
@@ -195,7 +215,7 @@ async def _fetch(session, url, record, params, headers=None, attempts_left=3):
 
 async def _create_tasks(url, records, *, params=None, headers=None, read_timeout=15, queries_per_second=20, n_connections=100,
                         n_retry=3, retry_wait_time=3):
-    """Setup rate limiting and client sessions and asynchronously call the url for each record
+    """Setup rate limiting and client sessions to asynchronously call the api for each record
     """
     if params is None:
         params = {}
@@ -237,7 +257,7 @@ def reach_append(host, api_name, api_outputs, api_key, search_records, **kwargs)
                  f"Request params are: {params}.\n"
                  f"Additional arguments: {kwargs}")
 
-    # Assigned here to avoid logging the api key.
+    # Assigned here to avoid logging the real api key.
     headers["x-versium-api-key"] = api_key
 
     loop = asyncio.get_event_loop()

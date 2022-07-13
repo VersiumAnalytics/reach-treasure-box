@@ -33,6 +33,15 @@
     PROFILE_DOMAIN_COL: ""
     PROFILE_IP_COL: ""
     PROFILE_COUNTRY_COL: ""
+
+    # Maximum number of queries per second to perform (hard cap of 100 qps)
+    QPS: 20
+    # Number of times to retry a query if it fails
+    NUM_RETRY: 3
+    # How long to wait before the query times out.
+    TIMEOUT: 20
+    # Logging verbosity ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "OFF")
+    LOG_LEVEL: "INFO"
   docker:
     image: "digdag/digdag-python:3.9"
 

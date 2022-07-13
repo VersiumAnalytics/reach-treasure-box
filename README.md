@@ -27,10 +27,11 @@ You can now login to your Treasure Data account and verify that the reach_integr
 
 ## Configure the workflow
 1) Open the reach_integration workflow then click the “Launch Project Editor” button to edit the reach_integration.dig file. 
+
 2) Click the “Edit files” button and provide the following updates:
    
    a) Provide your Treasure Data API key and REACH API key.
-   
+
    b) For REACH_API_NAME, specify which REACH API to query (this is the last portion of the Versium REACH API query url listed below):
      - contact
      - demographic
@@ -44,15 +45,18 @@ You can now login to your Treasure Data account and verify that the reach_integr
 
      **Note**: the contact and demographic APIs require you to specify which categories of data to return in the response. 
                Provide a comma separated list of these outputs for the REACH_API_OUTPUTS value. 
-               See documentation for more details: https://api-documentation.versium.com/docs 
- 
+               See documentation for more details: https://api-documentation.versium.com/docs
+   
    c) For PROFILES_DATABASE and PROFILES_TABLE, enter the name of the master segment database and table to perform the enrichment on.
-   
+
    d) For ENRICHED_PROFILES_TABLE, enter the name of the table to insert the enriched profiles into.
-   
+
    e) If the ENRICHED_PROFILES_TABLE already exists and already contains enriched profiles that you don’t want to enrich again, enter the name of the column that      contains a unique identifier for the profiles in the PROFILE_ID_COL value. This column must exist in both the PROFILES_TABLE and the ENRICHED_PROFILES_TABLE.
-   
+
    f) Finally, enter column names in the PROFILES_TABLE to use for matching against.
+
+   g) There are some optional settings at the bottom of the file to control how the query is performed and what progress
+      information is output. We recommend leaving these as the default values for most use cases.
 
 3) After you have finished editing the reach_integration.dig file, click the “Save & Commit” button.
 

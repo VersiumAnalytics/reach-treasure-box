@@ -182,9 +182,13 @@ async def _fetch(session, url, record, params, headers=None, attempts_left=3):
             return result
 
     except Exception as e:
-        status = getattr(response, "status", "UNKNOWN")
-        logger.error(f"Error during url fetch: {e}\n\tURL: {url}?{urllib.parse.urlencode(params)}"
-                     f"\n\tResponse Status: {status}\n\tAttempts Left: {attempts_left:d}")
+        if isinstance(e, aiohttp.ClientResponseError):  # Log some extra info if it's a ClientResponseError
+            logger.error(f"Error during url fetch: {e.message}\n\tURL: {e.request_info.real_url}"
+                         f"\n\tResponse Status: {e.status}\n\tHeaders: {e.headers}\n\tAttempts Left: {attempts_left:d}")
+        else:
+            status = getattr(response, "status", "UNKNOWN")
+            logger.error(f"Error during url fetch: {e}\n\tURL: {url}?{urllib.parse.urlencode(params)}"
+                         f"\n\tResponse Status: {status}\n\tAttempts Left: {attempts_left:d}")
         # Use a different error class so that we only catch errors from making the http request
         raise QueryError("Failed to fetch url.")
 

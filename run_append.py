@@ -1,4 +1,3 @@
-
 # Import builtins
 import asyncio
 import logging
@@ -9,6 +8,10 @@ import time
 import warnings
 import pkg_resources
 import urllib
+
+from collections import namedtuple
+
+# ********************************PACKAGE SETUP***************************************
 
 __requires__ = ["pandas==1.4.2", "pytd>=1.4.0", "aiohttp==3.8.1"]
 
@@ -53,18 +56,23 @@ except pkg_resources.VersionConflict as e:
     logger.error(f"Could not install required distribution `{e.req}` because it conflicts with the currently installed distribution `{e.dist}`.")
     raise
 
+# ************************************************************************************
+
+
 import aiohttp
 import pandas as pd
 import pytd
 import pytd.pandas_td as td
 
+QueryResult = namedtuple("QueryResult", ["result", "success", "match"], defaults=(None, False, False))
 
-SUCCESS_IDENTIFIER = "$__SUCCESS__$"
-INDEX_IDENTIFIER = "$__INDEX__$"
-MATCH_IDENTIFIER = "$__MATCH__$"
-DEFAULT_RESPONSE = {SUCCESS_IDENTIFIER: False, MATCH_IDENTIFIER: False}
+DEFAULT_RESPONSE = QueryResult(None, False, False)
 QUERIES_PER_SECOND_HARD_CAP = 100
 BATCH_SIZE = 10000
+
+
+class QueryError(RuntimeError):
+    pass
 
 
 class RateLimiter(object):
@@ -99,7 +107,7 @@ class RateLimiter(object):
                         return result
 
                     # Doesn't matter what the exception is, we will still try again
-                    except:
+                    except QueryError:
                         if self.n_retry - i > 0:
                             await asyncio.sleep(self.retry_wait_time * i)
                 # Failed to perform the query after n_retry attempts. Return empty response
@@ -118,11 +126,11 @@ class RateLimiter(object):
 
 
 def create_profile_api_map(id_column):
-    api_environ_map = {'first': 'PROFILE_FIRST_COL', 'last': 'PROFILE_LAST_COL',
-                       'email': 'PROFILE_EMAIL_COL', 'phone': 'PROFILE_PHONE_COL',
-                       'address': 'PROFILE_ADDRESS_COL', 'city': 'PROFILE_CITY_COL',
-                       'state': 'PROFILE_STATE_COL', 'zip': 'PROFILE_ZIP_COL', 'country': 'PROFILE_COUNTRY_COL',
-                       'business': 'PROFILE_BUSINESS_COL', 'domain': 'PROFILE_DOMAIN_COL', 'ip': 'PROFILE_IP_COL'}
+    api_environ_map = {"first": "PROFILE_FIRST_COL", "last": "PROFILE_LAST_COL",
+                       "email": "PROFILE_EMAIL_COL", "phone": "PROFILE_PHONE_COL",
+                       "address": "PROFILE_ADDRESS_COL", "city": "PROFILE_CITY_COL",
+                       "state": "PROFILE_STATE_COL", "zip": "PROFILE_ZIP_COL", "country": "PROFILE_COUNTRY_COL",
+                       "business": "PROFILE_BUSINESS_COL", "domain": "PROFILE_DOMAIN_COL", "ip": "PROFILE_IP_COL"}
     api_names = []
     profile_columns = []
 
@@ -143,9 +151,9 @@ def get_td_profiles(client, profiles_table, enriched_table, lookup_columns, id_c
     # if id_column provided, exclude records that have already been enriched
     if id_column:
         sql = "SELECT {0} FROM {1} WHERE {2} NOT IN (SELECT {3} FROM {4}) OFFSET {5} LIMIT {6}" \
-            .format(','.join(lookup_columns), profiles_table, id_column, id_column, enriched_table, offset, limit)
+            .format(",".join(lookup_columns), profiles_table, id_column, id_column, enriched_table, offset, limit)
     else:
-        sql = "SELECT {0} FROM {1} OFFSET {2} LIMIT {3}".format(','.join(lookup_columns), profiles_table, offset, limit)
+        sql = "SELECT {0} FROM {1} OFFSET {2} LIMIT {3}".format(",".join(lookup_columns), profiles_table, offset, limit)
     logger.debug(f"Querying td client with query: {sql}")
     return client.query(query=sql)
 
@@ -154,7 +162,6 @@ async def _fetch(session, url, record, params, headers=None, attempts_left=3):
     """Perform the api append for a single record.
     """
     params.update(record)
-    idx = params.pop(INDEX_IDENTIFIER, None)
 
     try:
 
@@ -163,21 +170,23 @@ async def _fetch(session, url, record, params, headers=None, attempts_left=3):
             body = await response.json(content_type=None)  # get json representation of response
             body = body["versium"]
             if "errors" in body:
-                raise RuntimeError(f"Received error response from REACH API: {body['errors']}")
+                raise QueryError(f"Received error response from REACH API: {body['errors']}")
             elif body["results"]:
-                result = {f"Versium {key}": val for key, val in body["results"][0].items()}
-                result[MATCH_IDENTIFIER] = True
+                result = QueryResult({f"Versium {key}": val for key, val in body["results"][0].items()},
+                                     success=True,
+                                     match=True)
             else:
-                logger.debug(f"API call successful but there were no matches for record at index (starting from 0) {idx}")
-                result = {MATCH_IDENTIFIER: False}
+                logger.debug(f"API call successful but there were no matches for record:\n\t{record}")
+                result = QueryResult(result=body, success=True, match=False)
 
-            result[SUCCESS_IDENTIFIER] = True
             return result
 
     except Exception as e:
-        logger.error(f"Error during url fetch: {e}\n\tIndex: {idx}\n\tURL: {url}?{urllib.parse.urlencode(params)}"
-                     f"\n\tResponse Status: {response.status}\n\tAttempts Left: {attempts_left:d}")
-        raise
+        status = getattr(response, "status", "UNKNOWN")
+        logger.error(f"Error during url fetch: {e}\n\tURL: {url}?{urllib.parse.urlencode(params)}"
+                     f"\n\tResponse Status: {status}\n\tAttempts Left: {attempts_left:d}")
+        # Use a different error class so that we only catch errors from making the http request
+        raise QueryError("Failed to fetch url.")
 
 
 async def _create_tasks(url, records, *, params=None, headers=None, read_timeout=15, queries_per_second=20, n_connections=100,
@@ -214,15 +223,18 @@ def reach_append(host, api_name, api_outputs, api_key, search_records, **kwargs)
     params = {"output[]": api_outputs, 'rcfg_include_liveramp': 1}
     
     headers = {
-        'Content-Type': 'application/json',
-        'X-Accept': 'json',
-        'x-versium-api-key': api_key
+        "Content-Type": "application/json",
+        "X-Accept": "json",
+        "x-versium-api-key": "<omitted>"
     }
     
     logger.debug(f"Started querying {len(search_records)} records.\n"
                  f"Request headers are: {headers}.\n"
                  f"Request params are: {params}.\n"
                  f"Additional arguments: {kwargs}")
+
+    # Assigned here to avoid logging the api key.
+    headers["x-versium-api-key"] = api_key
 
     loop = asyncio.get_event_loop()
     future = asyncio.ensure_future(_create_tasks(url, search_records, params=params, headers=headers, **kwargs))
@@ -284,8 +296,7 @@ def main():
         for row in td_profiles['data']:
             # map td profile record data to REACH API search params
             rec = {api_name: row[idx] for idx, api_name in enumerate(api_search_names) if row[idx]}
-            rec[INDEX_IDENTIFIER] = rec_ctr
-            api_search_records += [rec]
+            api_search_records.append(rec)
             rec_ctr += 1
 
         try:
@@ -296,16 +307,18 @@ def main():
                                      queries_per_second=queries_per_second, read_timeout=read_timeout)
             end_time = time.monotonic()
 
+            results, successes, matches = zip(*responses)
+
             output_df = pd.DataFrame(td_profiles['data'], columns=td_profile_columns)
-            append_df = pd.DataFrame(responses)
+
+            append_df = pd.DataFrame(results)
 
             # Calculate success rate, match rate, and queries per second
-            success_rate = append_df[SUCCESS_IDENTIFIER].mean()
-            match_rate = append_df[MATCH_IDENTIFIER].mean()
-            append_df.drop(columns=[SUCCESS_IDENTIFIER, MATCH_IDENTIFIER], inplace=True)
+            num_queries = len(responses)
+            success_rate = sum(successes) / num_queries
+            match_rate = sum(matches) / num_queries
 
             num_seconds = end_time - start_time
-            num_queries = len(responses)
             effective_qps = num_queries / num_seconds
             logger.info(f"Batch {batch} Results:\n"
                         f"\tQueried {num_queries} records in {num_seconds:.1f} seconds for an average of "

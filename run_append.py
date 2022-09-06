@@ -197,7 +197,7 @@ async def _fetch(session, url, record, params, headers=None, attempts_left=3):
                                      match=True)
             else:
                 logger.debug(f"API call successful but there were no matches for record:\n\t{record}")
-                result = QueryResult(result=body, success=True, match=False)
+                result = QueryResult(result={}, success=True, match=False)
 
             return result
 
